@@ -138,7 +138,7 @@ def remove_overlapping_bbox(bbox_list, kps_list, score_list):
         keep = True
         for j in range(len(bbox_list)):
             if i != j and bbox_overlap(bbox_list[i], bbox_list[j]):
-                if score_list[i] <= score_list[j]:
+                if score_list[i] < score_list[j]:
                     keep = False
                     break
         if keep:
@@ -196,11 +196,44 @@ def rotate_kps(kps, angle, frame_width, frame_height):
     return rotated_kps
 
 
+import numpy as np
+from numba import jit
+import numpy as np
+@jit(nopython=True)
+def bbox_overlap(bbox1, bbox2):
+    x1, y1, w1, h1 = bbox1
+    x2, y2, w2, h2 = bbox2
+    intersection_x = max(0, min(x1 + w1, x2 + w2) - max(x1, x2))
+    intersection_y = max(0, min(y1 + h1, y2 + h2) - max(y1, y2))
+    intersection_area = intersection_x * intersection_y
+    area1 = w1 * h1
+    area2 = w2 * h2
+    min_area = min(area1, area2)
+    iou = intersection_area / min_area
+    return iou >= 0.65
 
+@jit(nopython=True)
+def remove_overlapping_bbox(bbox_list, kps_list, score_list):
+    indices_to_keep = []
+    for i in range(len(bbox_list)):
+        keep = True
+        for j in range(len(bbox_list)):
+            if i != j and bbox_overlap(bbox_list[i], bbox_list[j]):
+                if score_list[i] < score_list[j]:
+                    keep = False
+                    break
+        if keep:
+            indices_to_keep.append(i)
+    
+    kept_bboxes = [bbox_list[i] for i in indices_to_keep]
+    kept_kps = [kps_list[i] for i in indices_to_keep]
+    kept_scores = [score_list[i] for i in indices_to_keep]
+    
+    return kept_bboxes, kept_kps, kept_scores
 import numpy as np
 
 def filter_detections(bbox_lists, kps_lists, score_lists):
-    for angle in [0, 90, 180, 270]:
+    for angle in [270,90,180,0]:
         bbox_list = bbox_lists[angle]
         kps_list = kps_lists[angle]
         score_list = score_lists[angle]
@@ -210,40 +243,31 @@ def filter_detections(bbox_lists, kps_lists, score_lists):
         filtered_score = []
         
         for i in range(len(bbox_list)):
-            # Lấy tọa độ của các điểm
-            eye1 = kps_list[i][0]
-            eye2 = kps_list[i][1]
-            nose = kps_list[i][2]
-            mouth1 = kps_list[i][3]
-            mouth2 = kps_list[i][4]
-
-            eye_nose_condition = False
-            nose_mouth_condition = False
-
-            # Kiểm tra các điều kiện đối với từng góc
+            # Kiểm tra vị trí của mắt so với miệng
             if angle == 0:
-                eye_nose_condition = eye1[1] < nose[1] and eye2[1] < nose[1]
-                nose_mouth_condition = nose[1] < mouth1[1] and nose[1] < mouth2[1]
+                if kps_list[i][1][1] < kps_list[i][3][1]:
+                    filtered_bbox.append(bbox_list[i])
+                    filtered_kps.append(kps_list[i])
+                    filtered_score.append(score_list[i])
             elif angle == 180:
-                eye_nose_condition = eye1[1] > nose[1] and eye2[1] > nose[1]
-                nose_mouth_condition = nose[1] > mouth1[1] and nose[1] > mouth2[1]
+                if kps_list[i][1][1] > kps_list[i][3][1]:
+                    filtered_bbox.append(bbox_list[i])
+                    filtered_kps.append(kps_list[i])
+                    filtered_score.append(score_list[i])
             elif angle == 270:
-                eye_nose_condition = eye1[0] < nose[0] and eye2[0] < nose[0]
-                nose_mouth_condition = nose[0] < mouth1[0] and nose[0] < mouth2[0]
+                if kps_list[i][0][0] < kps_list[i][3][0]:
+                    filtered_bbox.append(bbox_list[i])
+                    filtered_kps.append(kps_list[i])
+                    filtered_score.append(score_list[i])
             elif angle == 90:
-                eye_nose_condition = eye1[0] > nose[0] and eye2[0] > nose[0]
-                nose_mouth_condition = nose[0] > mouth1[0] and nose[0] > mouth2[0]
-            
-            # Kiểm tra nếu mắt so với miệng, mắt so với mũi hoặc mũi so với miệng
-            if eye_nose_condition or nose_mouth_condition:
-                filtered_bbox.append(bbox_list[i])
-                filtered_kps.append(kps_list[i])
-                filtered_score.append(score_list[i])
+                if kps_list[i][0][0] > kps_list[i][3][0]:
+                    filtered_bbox.append(bbox_list[i])
+                    filtered_kps.append(kps_list[i])
+                    filtered_score.append(score_list[i])
         
         bbox_lists[angle] = filtered_bbox
         kps_lists[angle] = filtered_kps
         score_lists[angle] = filtered_score
-
 
 
 def detect_with_retinaface(temp_frame, temp_frame_height, temp_frame_width,
@@ -257,7 +281,7 @@ def detect_with_retinaface(temp_frame, temp_frame_height, temp_frame_width,
     feature_map_channel = 3
     anchor_total = 2
 
-    directions = [270,180,90,0]  # north, east, south, west
+    directions = [0,90,180,270]  # north, east, south, west
 
     for direction in directions:
         rotated_frame = rotate_frame(temp_frame, direction)
@@ -301,7 +325,7 @@ def detect_with_retinaface(temp_frame, temp_frame_height, temp_frame_width,
     merged_bbox_list = sum(bbox_lists.values(), [])
     merged_kps_list = sum(kps_lists.values(), [])
     merged_score_list = sum(score_lists.values(), [])
-    merged_bbox_list, merged_kps_list, merged_score_list = remove_overlapping_bbox(merged_bbox_list, merged_kps_list, merged_score_list)
+    #merged_bbox_list, merged_kps_list, merged_score_list = remove_overlapping_bbox(merged_bbox_list, merged_kps_list, merged_score_list)
     return merged_bbox_list, merged_kps_list, merged_score_list
 
 
