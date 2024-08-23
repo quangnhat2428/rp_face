@@ -233,7 +233,7 @@ def remove_overlapping_bbox(bbox_list, kps_list, score_list):
 import numpy as np
 
 def filter_detections(bbox_lists, kps_lists, score_lists):
-    for angle in [270,90,180,0]:
+    for angle in [0, 90, 180, 270]:
         bbox_list = bbox_lists[angle]
         kps_list = kps_lists[angle]
         score_list = score_lists[angle]
@@ -243,24 +243,55 @@ def filter_detections(bbox_lists, kps_lists, score_lists):
         filtered_score = []
         
         for i in range(len(bbox_list)):
-            # Kiểm tra vị trí của mắt so với miệng
+            # Lấy tọa độ của các điểm
+            eye1 = kps_list[i][0]
+            eye2 = kps_list[i][1]
+            nose = kps_list[i][2]
+            mouth1 = kps_list[i][3]
+            mouth2 = kps_list[i][4]
+
+            # Điều kiện kiểm tra các mối quan hệ giữa mắt, mũi và miệng
+            eye_nose_condition = False
+            nose_mouth_condition = False
+            eye_mouth_condition = False
+
             if angle == 0:
-                if kps_list[i][1][1] < kps_list[i][3][1]:
-                    filtered_bbox.append(bbox_list[i])
-                    filtered_kps.append(kps_list[i])
-                    filtered_score.append(score_list[i])
+                eye_nose_condition = eye1[1] < nose[1] and eye2[1] < nose[1]
+                nose_mouth_condition = nose[1] < mouth1[1] and nose[1] < mouth2[1]
+                eye_mouth_condition = eye1[1] < mouth1[1] and eye2[1] < mouth2[1]
             elif angle == 180:
-                if kps_list[i][1][1] > kps_list[i][3][1]:
-                    filtered_bbox.append(bbox_list[i])
-                    filtered_kps.append(kps_list[i])
-                    filtered_score.append(score_list[i])
+                eye_nose_condition = eye1[1] > nose[1] and eye2[1] > nose[1]
+                nose_mouth_condition = nose[1] > mouth1[1] and nose[1] > mouth2[1]
+                eye_mouth_condition = eye1[1] > mouth1[1] and eye2[1] > mouth2[1]
             elif angle == 270:
-                if kps_list[i][0][0] < kps_list[i][3][0]:
+                eye_nose_condition = eye1[0] < nose[0] and eye2[0] < nose[0]
+                nose_mouth_condition = nose[0] < mouth1[0] and nose[0] < mouth2[0]
+                eye_mouth_condition = eye1[0] < mouth1[0] and eye2[0] < mouth2[0]
+            elif angle == 90:
+                eye_nose_condition = eye1[0] > nose[0] and eye2[0] > nose[0]
+                nose_mouth_condition = nose[0] > mouth1[0] and nose[0] > mouth2[0]
+                eye_mouth_condition = eye1[0] > mouth1[0] and eye2[0] > mouth2[0]
+            
+            # Ưu tiên điều kiện mắt-mũi-miệng
+            if eye_nose_condition and nose_mouth_condition and eye_mouth_condition:
+                filtered_bbox.append(bbox_list[i])
+                filtered_kps.append(kps_list[i])
+                filtered_score.append(score_list[i])
+            else:
+                # Nếu điều kiện trên không thỏa mãn, kiểm tra vị trí của mắt so với miệng
+                if angle == 0 and kps_list[i][1][1] < kps_list[i][3][1]:
                     filtered_bbox.append(bbox_list[i])
                     filtered_kps.append(kps_list[i])
                     filtered_score.append(score_list[i])
-            elif angle == 90:
-                if kps_list[i][0][0] > kps_list[i][3][0]:
+                elif angle == 180 and kps_list[i][1][1] > kps_list[i][3][1]:
+                    filtered_bbox.append(bbox_list[i])
+                    filtered_kps.append(kps_list[i])
+                    filtered_score.append(score_list[i])
+                elif angle == 270 and kps_list[i][0][0] < kps_list[i][3][0]:
+                    filtered_bbox.append(bbox_list[i])
+                    filtered_kps.append(kps_list[i])
+                    filtered_score.append(score_list[i])
+                elif angle == 90 and kps_list[i][0][0] > kps_list[i][3][0]:
                     filtered_bbox.append(bbox_list[i])
                     filtered_kps.append(kps_list[i])
                     filtered_score.append(score_list[i])
@@ -268,6 +299,7 @@ def filter_detections(bbox_lists, kps_lists, score_lists):
         bbox_lists[angle] = filtered_bbox
         kps_lists[angle] = filtered_kps
         score_lists[angle] = filtered_score
+
 
 
 def detect_with_retinaface(temp_frame, temp_frame_height, temp_frame_width,
