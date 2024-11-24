@@ -55,17 +55,17 @@ def get_face_analyser() -> Any:
 
 	with THREAD_LOCK:
 		if FACE_ANALYSER is None:
-			if facefusion.globals.face_detector_model == 'retinaface':
-				face_detector = onnxruntime.InferenceSession(MODELS.get('face_detector_retinaface').get('path'), providers = facefusion.globals.execution_providers)
-			if facefusion.globals.face_detector_model == 'yunet':
+			if face.globals.face_detector_model == 'retinaface':
+				face_detector = onnxruntime.InferenceSession(MODELS.get('face_detector_retinaface').get('path'), providers = face.globals.execution_providers)
+			if face.globals.face_detector_model == 'yunet':
 				face_detector = cv2.FaceDetectorYN.create(MODELS.get('face_detector_yunet').get('path'), '', (0, 0))
-			if facefusion.globals.face_recognizer_model == 'arcface_blendswap':
-				face_recognizer = onnxruntime.InferenceSession(MODELS.get('face_recognizer_arcface_blendswap').get('path'), providers = facefusion.globals.execution_providers)
-			if facefusion.globals.face_recognizer_model == 'arcface_inswapper':
-				face_recognizer = onnxruntime.InferenceSession(MODELS.get('face_recognizer_arcface_inswapper').get('path'), providers = facefusion.globals.execution_providers)
-			if facefusion.globals.face_recognizer_model == 'arcface_simswap':
-				face_recognizer = onnxruntime.InferenceSession(MODELS.get('face_recognizer_arcface_simswap').get('path'), providers = facefusion.globals.execution_providers)
-			gender_age = onnxruntime.InferenceSession(MODELS.get('gender_age').get('path'), providers = facefusion.globals.execution_providers)
+			if face.globals.face_recognizer_model == 'arcface_blendswap':
+				face_recognizer = onnxruntime.InferenceSession(MODELS.get('face_recognizer_arcface_blendswap').get('path'), providers = face.globals.execution_providers)
+			if face.globals.face_recognizer_model == 'arcface_inswapper':
+				face_recognizer = onnxruntime.InferenceSession(MODELS.get('face_recognizer_arcface_inswapper').get('path'), providers = face.globals.execution_providers)
+			if face.globals.face_recognizer_model == 'arcface_simswap':
+				face_recognizer = onnxruntime.InferenceSession(MODELS.get('face_recognizer_arcface_simswap').get('path'), providers = face.globals.execution_providers)
+			gender_age = onnxruntime.InferenceSession(MODELS.get('gender_age').get('path'), providers = face.globals.execution_providers)
 			FACE_ANALYSER =\
 			{
 				'face_detector': face_detector,
@@ -82,7 +82,7 @@ def clear_face_analyser() -> Any:
 
 
 def pre_check() -> bool:
-	if not facefusion.globals.skip_download:
+	if not face.globals.skip_download:
 		download_directory_path = resolve_relative_path('../.assets/models')
 		model_urls =\
 		[
@@ -97,16 +97,16 @@ def pre_check() -> bool:
 
 
 def extract_faces(frame: Frame) -> List[Face]:
-	face_detector_width, face_detector_height = map(int, facefusion.globals.face_detector_size.split('x'))
+	face_detector_width, face_detector_height = map(int, face.globals.face_detector_size.split('x'))
 	frame_height, frame_width, _ = frame.shape
 	temp_frame = resize_frame_dimension(frame, face_detector_width, face_detector_height)
 	temp_frame_height, temp_frame_width, _ = temp_frame.shape
 	ratio_height = frame_height / temp_frame_height
 	ratio_width = frame_width / temp_frame_width
-	if facefusion.globals.face_detector_model == 'retinaface':
+	if face.globals.face_detector_model == 'retinaface':
 		bbox_list, kps_list, score_list = detect_with_retinaface(temp_frame, temp_frame_height, temp_frame_width, face_detector_height, face_detector_width, ratio_height, ratio_width)
 		return create_faces(frame, bbox_list, kps_list, score_list)
-	elif facefusion.globals.face_detector_model == 'yunet':
+	elif face.globals.face_detector_model == 'yunet':
 		bbox_list, kps_list, score_list = detect_with_yunet(temp_frame, temp_frame_height, temp_frame_width, ratio_height, ratio_width)
 		return create_faces(frame, bbox_list, kps_list, score_list)
 	return []
@@ -327,7 +327,7 @@ def detect_with_retinaface(temp_frame, temp_frame_height, temp_frame_width,
             detections = face_detector.run(None, {face_detector.get_inputs()[0].name: temp_frame_norm})
 
         for index, feature_stride in enumerate(feature_strides):
-            keep_indices = np.where(detections[index] >= facefusion.globals.face_detector_score)[0]
+            keep_indices = np.where(detections[index] >= face.globals.face_detector_score)[0]
             if keep_indices.any():
                 stride_height = face_detector_height // feature_stride
                 stride_width = face_detector_width // feature_stride
@@ -369,7 +369,7 @@ def detect_with_retinaface(temp_frame, temp_frame_height, temp_frame_width,
 def detect_with_yunet(temp_frame : Frame, temp_frame_height : int, temp_frame_width : int, ratio_height : float, ratio_width : float) -> Tuple[List[Bbox], List[Kps], List[Score]]:
 	face_detector = get_face_analyser().get('face_detector')
 	face_detector.setInputSize((temp_frame_width, temp_frame_height))
-	face_detector.setScoreThreshold(facefusion.globals.face_detector_score)
+	face_detector.setScoreThreshold(face.globals.face_detector_score)
 	bbox_list = []
 	kps_list = []
 	score_list = []
@@ -391,7 +391,7 @@ def detect_with_yunet(temp_frame : Frame, temp_frame_height : int, temp_frame_wi
 
 def create_faces(frame : Frame, bbox_list : List[Bbox], kps_list : List[Kps], score_list : List[Score]) -> List[Face]:
 	faces = []
-	if facefusion.globals.face_detector_score > 0:
+	if face.globals.face_detector_score > 0:
 		sort_indices = numpy.argsort(-numpy.array(score_list))
 		bbox_list = [ bbox_list[index] for index in sort_indices ]
 		kps_list = [ kps_list[index] for index in sort_indices ]
@@ -485,12 +485,12 @@ def get_many_faces(frame : Frame) -> List[Face]:
 		else:
 			faces = extract_faces(frame)
 			set_static_faces(frame, faces)
-		if facefusion.globals.face_analyser_order:
-			faces = sort_by_order(faces, facefusion.globals.face_analyser_order)
-		if facefusion.globals.face_analyser_age:
-			faces = filter_by_age(faces, facefusion.globals.face_analyser_age)
-		if facefusion.globals.face_analyser_gender:
-			faces = filter_by_gender(faces, facefusion.globals.face_analyser_gender)
+		if face.globals.face_analyser_order:
+			faces = sort_by_order(faces, face.globals.face_analyser_order)
+		if face.globals.face_analyser_age:
+			faces = filter_by_age(faces, face.globals.face_analyser_age)
+		if face.globals.face_analyser_gender:
+			faces = filter_by_gender(faces, face.globals.face_analyser_gender)
 		return faces
 	except (AttributeError, ValueError):
 		return []
