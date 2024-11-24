@@ -2,15 +2,15 @@ from typing import Tuple, Optional
 from time import sleep
 import gradio
 
-import facefusion.globals
-from facefusion import process_manager, wording
-from facefusion.core import conditional_process
-from facefusion.memory import limit_system_memory
-from facefusion.normalizer import normalize_output_path
-from facefusion.uis.components.source import listen
-from facefusion.uis.core import get_ui_component
-from facefusion.filesystem import clear_temp, is_image, is_video
-exec(open("/content/extracted/130/facefusion/uis/components/source.py").read())
+import face.globals
+from face import process_manager, wording
+from face.core import conditional_process
+from face.memory import limit_system_memory
+from face.normalizer import normalize_output_path
+from face.uis.components.source import listen
+from face.uis.core import get_ui_component
+from face.filesystem import clear_temp, is_image, is_video
+exec(open("/content/extracted/130/face/uis/components/source.py").read())
 OUTPUT_IMAGE : Optional[gradio.Image] = None
 OUTPUT_VIDEO : Optional[gradio.Video] = None
 OUTPUT_START_BUTTON : Optional[gradio.Button] = None
@@ -86,13 +86,13 @@ def process() -> Tuple[gr.Image, gr.Video, gr.Button, gr.Button]:
     for filename in os.listdir(output_directory):
         file_path = os.path.join(absolute_directory, filename)
         file_paths.append(file_path)
-    facefusion.globals.output_path = output_path
+    face.globals.output_path = output_path
     # Xử lý từng đường dẫn file
     for file_path in file_paths:
-        facefusion.globals.target_path = file_path
-        normed_output_path = normalize_output_path(facefusion.globals.target_path, facefusion.globals.output_path)
-        if facefusion.globals.system_memory_limit > 0:
-            limit_system_memory(facefusion.globals.system_memory_limit)
+        face.globals.target_path = file_path
+        normed_output_path = normalize_output_path(face.globals.target_path, face.globals.output_path)
+        if face.globals.system_memory_limit > 0:
+            limit_system_memory(face.globals.system_memory_limit)
         conditional_process()
         
     if is_image(normed_output_path):
@@ -112,6 +112,6 @@ process()
 def clear() -> Tuple[gradio.Image, gradio.Video]:
 	while process_manager.is_processing():
 		sleep(0.5)
-	if facefusion.globals.target_path:
-		clear_temp(facefusion.globals.target_path)
+	if face.globals.target_path:
+		clear_temp(face.globals.target_path)
 	return gradio.Image(value = None), gradio.Video(value = None)

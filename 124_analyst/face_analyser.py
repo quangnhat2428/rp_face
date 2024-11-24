@@ -4,13 +4,13 @@ import cv2
 import numpy
 import onnxruntime
 
-import facefusion.globals
-from facefusion.download import conditional_download
-from facefusion.face_store import get_static_faces, set_static_faces
-from facefusion.face_helper import warp_face, create_static_anchors, distance_to_kps, distance_to_bbox, apply_nms
-from facefusion.filesystem import resolve_relative_path
-from facefusion.typing import Frame, Face, FaceSet, FaceAnalyserOrder, FaceAnalyserAge, FaceAnalyserGender, ModelSet, Bbox, Kps, Score, Embedding
-from facefusion.vision import resize_frame_dimension
+import face.globals
+from face.download import conditional_download
+from face.face_store import get_static_faces, set_static_faces
+from face.face_helper import warp_face, create_static_anchors, distance_to_kps, distance_to_bbox, apply_nms
+from face.filesystem import resolve_relative_path
+from face.typing import Frame, Face, FaceSet, FaceAnalyserOrder, FaceAnalyserAge, FaceAnalyserGender, ModelSet, Bbox, Kps, Score, Embedding
+from face.vision import resize_frame_dimension
 
 FACE_ANALYSER = None
 THREAD_SEMAPHORE : threading.Semaphore = threading.Semaphore()
